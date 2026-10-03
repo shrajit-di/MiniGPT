@@ -1,0 +1,28 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+
+# Python cache & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Checkpoints & model weights
+checkpoints/
+*.pt
+*.pth
+*.bin
+
+# Outputs & plots
+outputs/
+*.png
+*.jpg
+*.svg
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
