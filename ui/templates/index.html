@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniGPT - Built from Scratch</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --primary: #3b82f6;
+            --primary-hover: #2563eb;
+            --border: #334155;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 2rem;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        p.subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .control-panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1.5rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        textarea {
+            width: 100%;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 100px;
+            box-sizing: border-box;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .sliders {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 0.5rem;
+        }
+
+        input[type="number"] {
+            background-color: var(--bg-color);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            width: 60px;
+            text-align: right;
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-hover);
+        }
+
+        button:disabled {
+            background-color: var(--border);
+            cursor: not-allowed;
+            color: var(--text-muted);
+        }
+
+        .output-panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid var(--border);
+            min-height: 150px;
+            white-space: pre-wrap;
+            line-height: 1.5;
+            font-family: "Courier New", Courier, monospace;
+        }
+        
+        .loading {
+            color: var(--text-muted);
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>MiniGPT</h1>
+    <p class="subtitle">Decoder-only Transformer trained from scratch</p>
+
+    <div class="control-panel">
+        <div class="input-group">
+            <label for="prompt">Prompt</label>
+            <textarea id="prompt" placeholder="Start typing here... e.g. To be,">To be,</textarea>
+        </div>
+
+        <div class="sliders">
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label for="temperature">Temperature</label>
+                    <span id="temp-val">0.8</span>
+                </div>
+                <input type="range" id="temperature" min="0.1" max="2.0" step="0.1" value="0.8" 
+                       oninput="document.getElementById('temp-val').innerText = this.value">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label for="top_k">Top-k Sampling</label>
+                    <span id="topk-val">5</span>
+                </div>
+                <input type="range" id="top_k" min="1" max="20" step="1" value="5"
+                       oninput="document.getElementById('topk-val').innerText = this.value">
+            </div>
+
+            <div class="slider-group">
+                <div class="slider-header">
+                    <label for="max_tokens">Max Tokens</label>
+                    <input type="number" id="max_tokens" value="150" min="10" max="500">
+                </div>
+            </div>
+        </div>
+
+        <button id="generate-btn" onclick="generateText()">Generate Text</button>
+    </div>
+
+    <div class="output-panel" id="output">
+        <span class="loading">Output will appear here...</span>
+    </div>
+</div>
+
+<script>
+    async function generateText() {
+        const btn = document.getElementById('generate-btn');
+        const outputEl = document.getElementById('output');
+        const prompt = document.getElementById('prompt').value;
+        const temperature = parseFloat(document.getElementById('temperature').value);
+        const top_k = parseInt(document.getElementById('top_k').value);
+        const max_tokens = parseInt(document.getElementById('max_tokens').value);
+
+        if (!prompt.trim()) {
+            alert("Please enter a prompt.");
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerText = "Generating...";
+        outputEl.innerHTML = '<span class="loading">Running inference...</span>';
+
+        try {
+            const response = await fetch('/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    prompt: prompt,
+                    temperature: temperature,
+                    top_k: top_k,
+                    max_tokens: max_tokens
+                })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                outputEl.innerText = data.generated_text;
+            } else {
+                outputEl.innerText = `Error: ${data.error}`;
+                outputEl.style.color = "red";
+            }
+        } catch (err) {
+            outputEl.innerText = `Error connecting to server: ${err.message}`;
+            outputEl.style.color = "red";
+        } finally {
+            btn.disabled = false;
+            btn.innerText = "Generate Text";
+            // Reset color in case it was red
+            if(outputEl.innerText && !outputEl.innerText.startsWith("Error")) {
+                outputEl.style.color = "var(--text-main)";
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
